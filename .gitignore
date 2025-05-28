@@ -1,0 +1,12 @@
+# Python bytecode
+__pycache__/
+*.pyc
+
+# macOS 
+.DS_Store
+
+# VS Code workplace
+.vscode/
+
+# Jupyter Notebook checkpoints (if)
+.ipynb_checkpoints/
