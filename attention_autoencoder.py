@@ -35,56 +35,136 @@ class FeatureAttention(nn.Module):
         # Realize attention mechanism.
         return x * weights 
 
-# Attention-based autoencoder for anomaly detection
+# Attention-based autoencoder for anomaly detection.
+# This class inherites from the nn.Module from PyTorch.
+# It is used to build a learnable neural network module.
 class AttentionAutoencoder(nn.Module):
+
+    # The constructor function, accept 1) input dimensions 2) the dimention of the latent space.
     def __init__(self, input_dim, hidden_dim):
+
+        # Utilize the initialization logic of the father class.
         super(AttentionAutoencoder, self).__init__()
-        # Encoder: compress input
-        self.encoder = nn.Sequential(
-            nn.Linear(input_dim, hidden_dim),
-            nn.ReLU()
-        )
-        # Attention on latent representation
+
+        # Encoder: compress input.
+        # First, map the input linearly to the hidden_dim.
+        # Then, use activation function - ReLU to activate the mapping output.
+        self.encoder = nn.Sequential( nn.Linear(input_dim, hidden_dim), nn.ReLU() )
+        
+        # Attention on latent representation.
+        # Initiate the previously defined FeatureAttention module.
+        # In order to perform feature-wise attention weighting on the hidden_dim-dimensional latent representation.
         self.attention = FeatureAttention(hidden_dim)
-        # Decoder: reconstruct input
+        
+        # Decoder: reconstruct input.
+        # A single-layer linear transformation.
+        # It maps the weighted latent vector back to the original input_dim dimensionality for reconstructing the input.
         self.decoder = nn.Linear(hidden_dim, input_dim)
 
+    # Define the forward propogation interface.
+    # x is the input vetor with shape [batch_size, input_dim].
     def forward(self, x):
+
         # x: [batch_size, input_dim]
         z = self.encoder(x)
+
+        # Apply with the weights then get the attention.
         z_att = self.attention(z)
+
+        # Pass the weighted latent vector through the decoder to reconstruct recon.
+        # It is an ouput with the same dimensionality as x.
         recon = self.decoder(z_att)
+
+        # The final output of the forward pass (the reconstruction error).
+        # It will be used for subsequent conputations (such as the MSE loss or anomaly score).
         return recon
 
-# Example training loop stub
+
 def train_model(model, data_loader, num_epochs=20, lr=1e-3, device='cpu'):
+    '''
+        funtion: Define the function which is used to train the input model.
+        Parameters:
+            model: the model that is going to be trained.
+            data_loader: provide the training data batch by batch.
+            num_epocs: the number of traning epoches.
+            lr: the learing rate, by default is 0.001.
+            device: the device that is used for the training, be default is CPU.
+    '''
+
+    # Copy the model and all parameters to the device.
+    # The continuous forward as well as the back calculations will take place on this device.
     model.to(device)
+
+    # Initialize an optimazer "Adam".
+    # It is used to update the learnable parameters - model.parameters.
+    # The learning rate is 'lr'.
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+
+    # Loss function - Mean Squared Error.
+    # It is used to measure the discrepency between the model's outputrecon and the true input x.
     criterion = nn.MSELoss()
+
+    # Train this model.
     model.train()
+
+    # Go through every training epoch.
     for epoch in range(1, num_epochs + 1):
+
+        # Before this epoch starts, set the total_loss as 0.
+        # It is used to record the total loss of all batches in this epoch.
         total_loss = 0.0
+
+        # for each batch
         for batch in data_loader:
             # batch: [batch_size, input_dim]
             x = batch[0].to(device)
+
+            # Use forward method get recon.
             recon = model(x)
+
+            # Calculate the MSE to get the loss.
             loss = criterion(recon, x)
+
+            # Clear the previous grad, prepare for this back-propogation.
             optimizer.zero_grad()
+
+            # Execute the back propogation, Calculate all gradients correspond to all the learnable parameters.
             loss.backward()
+
+            # According to the calculated gradients, use Adam to update parameters, to let the loss goes down.
             optimizer.step()
+
+            # Add the loss of this batch to the total loss.
+            # x.size(0) means: to calculate the average loss easier in the following step.
             total_loss += loss.item() * x.size(0)
+
+        # After go through all batches in this epoch, calculate the average loss.
         avg_loss = total_loss / len(data_loader.dataset)
         print(f"Epoch {epoch}/{num_epochs}, Loss: {avg_loss:.4f}")
 
-# Anomaly score (reconstruction error)
+
 def compute_anomaly_score(model, x, device='cpu'):
+    '''
+        Function: Anomaly score (reconstruction error).
+        Parameters:
+            model: the trained auto-encoder model.
+            x: input vector.
+            device: by default is cpu.
+        Return: the anomaly score.
+    '''
     model.to(device)
+
+    # Trun the model to evaluation mode.
     model.eval()
+
+    # Forbid the gradients.
+    # Only do the forward calculation. No backward.
     with torch.no_grad():
         x = x.to(device)
         recon = model(x)
         # Mean squared error per sample
         scores = torch.mean((recon - x) ** 2, dim=1)
+    
     return scores
 
 if __name__ == '__main__':
