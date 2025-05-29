@@ -1,3 +1,4 @@
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -169,25 +170,48 @@ def compute_anomaly_score(model, x, device='cpu'):
 
 if __name__ == '__main__':
     # Hyperparameters
-    FEATURE_DIM = 16
     HIDDEN_DIM = 8
-    NUM_SAMPLES = 1000
     BATCH_SIZE = 32
-    NUM_EPOCHS = 5
+    NUM_EPOCHS = 20
 
-    # Generate dummy normal data
-    data = torch.randn(NUM_SAMPLES, FEATURE_DIM)
-    dataset = torch.utils.data.TensorDataset(data)
-    loader = torch.utils.data.DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
+    df = pd.read_csv('data.txt', sep=r'\s+', engine='python')
 
+    feature_cols = [
+        'linear_velocity',
+        'angular_velocity',
+        'gps_x', 'gps_y', 'gps_yaw',
+        'lidar_x', 'lidar_y', 'lidar_yaw',
+        'imu_a', 'imu_w'
+    ]
+    features = df[feature_cols].values
+
+    data_tensor = torch.tensor(features, dtype=torch.float32)
+    dataset = torch.utils.data.TensorDataset(data_tensor)
+    
     # Initialize and train the model
-    model = AttentionAutoencoder(input_dim=FEATURE_DIM, hidden_dim=HIDDEN_DIM)
-    train_model(model, loader, num_epochs=NUM_EPOCHS)
+    model = AttentionAutoencoder(input_dim=len(feature_cols), hidden_dim=HIDDEN_DIM)
 
-    # Test anomaly scores on new samples
-    test_data = torch.randn(10, FEATURE_DIM)
-    scores = compute_anomaly_score(model, test_data)
-    print('Anomaly scores:', scores)
+    split = int(0.8 * len(data_tensor))
+    train_ds = torch.utils.data.TensorDataset(data_tensor[:split])
+    test_ds = torch.utils.data.TensorDataset(data_tensor[split:])
+    train_loader = torch.utils.data.DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True)
+    test_loader = torch.utils.data.DataLoader(test_ds, batch_size=BATCH_SIZE)
+
+    train_model(model, train_loader, num_epochs=NUM_EPOCHS)
+
+    all_scores = []
+
+    for (x_batch, ) in test_loader:
+        scores = compute_anomaly_score(model, x_batch)
+        all_scores.append(scores)
+    
+    all_scores = torch.cat(all_scores)
+    print('Test-set anomaly scores:', all_scores)
+    print("min:", all_scores.min().item())
+    print("max:", all_scores.max().item())
+    print("mean:", all_scores.mean().item())
+    print("std:", all_scores.std().item())
+
 
 # Usage outline:
 # 1. Prepare a DataLoader `train_loader` with normal (non-spoofed) fused sensor data.
