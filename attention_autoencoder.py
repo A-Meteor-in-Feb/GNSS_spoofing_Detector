@@ -1,7 +1,6 @@
 import pandas as pd
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 # Simple feature-wise attention module.
 # Inherit the basic module nn.Module from Pytorch.
