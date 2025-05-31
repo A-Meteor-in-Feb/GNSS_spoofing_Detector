@@ -211,13 +211,3 @@ if __name__ == '__main__':
     print("max:", all_scores.max().item())
     print("mean:", all_scores.mean().item())
     print("std:", all_scores.std().item())
-
-
-# Usage outline:
-# 1. Prepare a DataLoader `train_loader` with normal (non-spoofed) fused sensor data.
-# 2. Instantiate and train:
-#       model = AttentionAutoencoder(input_dim=FEATURE_DIM, hidden_dim=HIDDEN_DIM)
-#       train_model(model, train_loader)
-# 3. For a new batch `x_test`, compute scores:
-#       scores = compute_anomaly_score(model, x_test)
-# 4. Declare spoofing if score > chosen_threshold
