@@ -20,6 +20,9 @@ class LSTMAutoencoder(nn.Module):
 
         # encoder
         self.encoder_lstm = nn.LSTM(input_size=input_dim, hidden_size=hidden_dim, num_layers=num_layers, batch_first=True, bidirectional=False)
+        
+        # feature attention
+        self.attention = FeatureAttention(hidden_dim)
 
         # decoder
         self.decoder_lstm = nn.LSTM(input_size=hidden_dim, hidden_size=hidden_dim, num_layers=num_layers, batch_first=True, bidirectional=False)
@@ -51,8 +54,9 @@ class LSTMAutoencoder(nn.Module):
         # hidden state of the autoencoder
         z = hidden_n[-1]
         
+
         # use attention -- for now, no use.
-        z_att = z
+        z_att = self.attention(z)
 
         # decoder - input, repeat z_att T times (?) -> a sequence
         decoder_input = z_att.unsqueeze(1).repeat(1, seq_len, 1)
@@ -63,7 +67,23 @@ class LSTMAutoencoder(nn.Module):
         recon = self.output_layer(decoder_output)
 
         return recon
+    
+# calculate feature attention
+class FeatureAttention(nn.Module):
+    
+    # Define initialization, accept one parameter: input_dim - the dimentions of the input features.
+    def __init__(self, input_dim):
+        
+        super(FeatureAttention, self).__init__()
+        
+        self.att = nn.Linear(input_dim, input_dim)
 
+    # Define the method of forward propogation, accept input x.
+    def forward(self, x):
+        
+        weights = torch.sigmoid(self.att(x)) 
+        
+        return x * weights 
 
 # train model
 def train_model_lstm(model: nn.Module, train_loader: DataLoader, num_epochs: int = 20, lr: float = 1e-3, device: str = "cpu"):
