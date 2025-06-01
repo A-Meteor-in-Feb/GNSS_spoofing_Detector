@@ -232,5 +232,3 @@ if __name__ == '__main__':
 
     anomalies = test_scores > tau
     print(f"Number of anomalies in test set: {anomalies.sum().item()} / {len(test_scores)}")
-
-
